@@ -7,12 +7,12 @@ class Notification:
 
         result = body.get("result", {})
         if result.get("resultMsg", "FAILURE").upper() != "SUCCESS":  
-            message = f"로또 구매 실패 (`{result.get('resultMsg', 'Unknown Error')}`) 남은잔액 : {body.get('balance', '확인불가')}"
+            message = f"로또 구매 처리 중 문제가 있었어요 🙏 설정 확인 후 다시 진행해볼게요. 남은잔액: {body.get('balance', '확인불가')}"
             self._send_discord_webhook(webhook_url, message)
             return
 
         lotto_number_str = self.make_lotto_number_message(result["arrGameChoiceNum"])
-        message = f"{result['buyRound']}회 로또 구매 완료 :moneybag: 남은잔액 : {body.get('balance', '확인불가')}\n```{lotto_number_str}```"
+        message = f"로또 구매가 완료됐어요 😊 남은잔액: {body.get('balance', '확인불가')}\n```{lotto_number_str}```"
         self._send_discord_webhook(webhook_url, message)
 
     def make_lotto_number_message(self, lotto_number: list) -> str:
@@ -32,7 +32,7 @@ class Notification:
     def send_win720_buying_message(self, body: dict, webhook_url: str) -> None:
         
         if body.get("resultCode") != '100':  
-            message = f"연금복권 구매 실패 (`{body.get('resultMsg', 'Unknown Error')}`) 남은잔액 : {body.get('balance', '확인불가')}"
+            message = f"연금복권 구매 처리 중 문제가 있었어요 🙏 설정 확인 후 다시 진행해볼게요. 남은잔액: {body.get('balance', '확인불가')}"
             self._send_discord_webhook(webhook_url, message)
             return       
 
@@ -48,7 +48,7 @@ class Notification:
         else:
             win720_number_str = self.make_win720_number_message(body.get("saleTicket"))
 
-        message = f"{win720_round}회 연금복권 구매 완료 :moneybag: 남은잔액 : {body.get('balance', '확인불가')}\n```\n{win720_number_str}```"
+        message = f"연금복권 구매가 완료됐어요 😊 남은잔액: {body.get('balance', '확인불가')}\n```\n{win720_number_str}```"
         self._send_discord_webhook(webhook_url, message)
 
     def make_win720_number_message(self, win720_number: str) -> str:
@@ -96,13 +96,13 @@ class Notification:
             is_winning = winning['money'] != "-" and winning['money'] != "0 원" and winning['money'] != "0"
             
             if is_winning:
-                winning_message = f"로또 *{winning['round']}회* - *{winning['money']}* 당첨 되었습니다 🎉 (남은잔액 : {balance_str})"
+                winning_message = f"[{winning['round']}회차] 축하드려요! 당첨되셨어요 🎉 당첨금은 {winning['money']}예요."
             else:
-                winning_message = f"로또 *{winning['round']}회* - 다음 기회에... 🫠 (남은잔액 : {balance_str})"
+                winning_message = f"[{winning['round']}회차] 아쉽지만 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 😊"
 
             self._send_discord_webhook(webhook_url, f"```ini\n{formatted_results}```\n{winning_message}")
         except KeyError:
-            message = f"로또 - 다음 기회에... 🫠 (남은잔액 : {balance_str})"
+            message = f"로또 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 :) (남은잔액 : {balance_str}) 🥲"
             self._send_discord_webhook(webhook_url, message)
             return
 
@@ -127,13 +127,13 @@ class Notification:
             is_winning = winning['money'] != "-" and winning['money'] != "0 원" and winning['money'] != "0"
 
             if is_winning:
-                message = f"{message_content}연금복권 *{winning['round']}회* - *{winning['money']}* 당첨 되었습니다 🎉 (남은잔액 : {balance_str})"
+                message = f"{message_content}[{winning['round']}회차] 축하드려요! 당첨되셨어요 🎉 당첨금은 {winning['money']}예요."
             else:
-                 message = f"{message_content}연금복권 *{winning['round']}회* - 다음 기회에... 🫠 (남은잔액 : {balance_str})"
+                 message = f"{message_content}[{winning['round']}회차] 아쉽지만 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 😊"
 
             self._send_discord_webhook(webhook_url, message)
         except KeyError:
-            message = f"연금복권 - 다음 기회에... 🫠 (남은잔액 : {balance_str})"
+            message = f"연금복권 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 :) (남은잔액 : {balance_str}) 🥲"
             self._send_discord_webhook(webhook_url, message)
 
     def _send_discord_webhook(self, webhook_url: str, message: str) -> None:        
