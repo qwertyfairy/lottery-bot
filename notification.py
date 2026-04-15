@@ -96,9 +96,9 @@ class Notification:
             is_winning = winning['money'] != "-" and winning['money'] != "0 원" and winning['money'] != "0"
             
             if is_winning:
-                winning_message = f"[{winning['round']}회차] 축하드려요! 당첨되셨어요 🎉 당첨금은 {winning['money']}예요."
+                winning_message = f"[로또 {winning['round']}회차] 축하드려요! 당첨되셨어요 🎉 당첨금은 {winning['money']}예요."
             else:
-                winning_message = f"[{winning['round']}회차] 아쉽지만 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 😊"
+                winning_message = f"[로또 {winning['round']}회차] 아쉽지만 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 😊"
 
             self._send_discord_webhook(webhook_url, f"```ini\n{formatted_results}```\n{winning_message}")
         except KeyError:
@@ -127,9 +127,9 @@ class Notification:
             is_winning = winning['money'] != "-" and winning['money'] != "0 원" and winning['money'] != "0"
 
             if is_winning:
-                message = f"{message_content}[{winning['round']}회차] 축하드려요! 당첨되셨어요 🎉 당첨금은 {winning['money']}예요."
+                message = f"{message_content}[연금복권 {winning['round']}회차] 축하드려요! 당첨되셨어요 🎉 당첨금은 {winning['money']}예요."
             else:
-                 message = f"{message_content}[{winning['round']}회차] 아쉽지만 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 😊"
+                 message = f"{message_content}[연금복권 {winning['round']}회차] 아쉽지만 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 😊"
 
             self._send_discord_webhook(webhook_url, message)
         except KeyError:
