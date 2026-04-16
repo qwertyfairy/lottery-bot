@@ -112,11 +112,6 @@ def check():
         response = check_winning_lotto645(auth_ctrl)
         send_message(0, 0, response=response, webhook_url=webhook_url, account_label=account["label"])
 
-        time.sleep(10)
-        
-        response = check_winning_win720(auth_ctrl)
-        send_message(0, 1, response=response, webhook_url=webhook_url, account_label=account["label"])
-
         if index < len(accounts) - 1:
             time.sleep(10)
 
@@ -133,14 +128,6 @@ def buy():
 
         response = buy_lotto645(auth_ctrl, count, mode) 
         send_message(1, 0, response=response, webhook_url=webhook_url, account_label=account["label"])
-
-        time.sleep(10)
-
-        auth_ctrl.http_client.session.cookies.clear()
-        auth_ctrl, username, webhook_url = _setup_and_login(account)
-
-        response = buy_win720(auth_ctrl, username) 
-        send_message(1, 1, response=response, webhook_url=webhook_url, account_label=account["label"])
 
         if index < len(accounts) - 1:
             time.sleep(10)
