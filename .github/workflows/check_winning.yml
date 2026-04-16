@@ -25,3 +25,7 @@ jobs:
           COUNT: ${{ secrets.COUNT }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           DISCORD_WEBHOOK_URL:  ${{ secrets.DISCORD_WEBHOOK_URL }}
+          USERNAME_KYU: ${{ secrets.USERNAME_KYU }}
+          PASSWORD_KYU: ${{ secrets.PASSWORD_KYU }}
+          COUNT_KYU: ${{ secrets.COUNT_KYU }}
+          DISCORD_WEBHOOK_URL_KYU: ${{ secrets.DISCORD_WEBHOOK_URL_KYU }}

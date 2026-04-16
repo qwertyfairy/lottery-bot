@@ -1,18 +1,20 @@
 import requests
 import re
+from typing import Optional
 
 class Notification:
-    def send_lotto_buying_message(self, body: dict, webhook_url: str) -> None:
-        assert type(webhook_url) == str
+    def _with_account_label(self, account_label: str, message: str) -> str:
+        return f"[{account_label}] {message}"
 
+    def send_lotto_buying_message(self, body: dict, webhook_url: Optional[str], account_label: str) -> None:
         result = body.get("result", {})
         if result.get("resultMsg", "FAILURE").upper() != "SUCCESS":  
-            message = f"로또 구매 처리 중 문제가 있었어요 🙏 설정 확인 후 다시 진행해볼게요. 남은잔액: {body.get('balance', '확인불가')}"
+            message = self._with_account_label(account_label, f"로또 구매 처리 중 문제가 있었어요 🙏 설정 확인 후 다시 진행해볼게요. 남은잔액: {body.get('balance', '확인불가')}")
             self._send_discord_webhook(webhook_url, message)
             return
 
         lotto_number_str = self.make_lotto_number_message(result["arrGameChoiceNum"])
-        message = f"로또 구매가 완료됐어요 😊 남은잔액: {body.get('balance', '확인불가')}\n```{lotto_number_str}```"
+        message = self._with_account_label(account_label, f"로또 구매가 완료됐어요 😊 남은잔액: {body.get('balance', '확인불가')}\n```{lotto_number_str}```")
         self._send_discord_webhook(webhook_url, message)
 
     def make_lotto_number_message(self, lotto_number: list) -> str:
@@ -29,10 +31,10 @@ class Notification:
         
         return lotto_number
 
-    def send_win720_buying_message(self, body: dict, webhook_url: str) -> None:
+    def send_win720_buying_message(self, body: dict, webhook_url: Optional[str], account_label: str) -> None:
         
         if body.get("resultCode") != '100':  
-            message = f"연금복권 구매 처리 중 문제가 있었어요 🙏 설정 확인 후 다시 진행해볼게요. 남은잔액: {body.get('balance', '확인불가')}"
+            message = self._with_account_label(account_label, f"연금복권 구매 처리 중 문제가 있었어요 🙏 설정 확인 후 다시 진행해볼게요. 남은잔액: {body.get('balance', '확인불가')}")
             self._send_discord_webhook(webhook_url, message)
             return       
 
@@ -48,7 +50,7 @@ class Notification:
         else:
             win720_number_str = self.make_win720_number_message(body.get("saleTicket"))
 
-        message = f"연금복권 구매가 완료됐어요 😊 남은잔액: {body.get('balance', '확인불가')}\n```\n{win720_number_str}```"
+        message = self._with_account_label(account_label, f"연금복권 구매가 완료됐어요 😊 남은잔액: {body.get('balance', '확인불가')}\n```\n{win720_number_str}```")
         self._send_discord_webhook(webhook_url, message)
 
     def make_win720_number_message(self, win720_number: str) -> str:
@@ -58,15 +60,11 @@ class Notification:
             formatted_numbers.append(formatted_number)
         return "\n".join(formatted_numbers)
 
-    def send_lotto_winning_message(self, winning: dict, webhook_url: str) -> None: 
+    def send_lotto_winning_message(self, winning: dict, webhook_url: Optional[str], account_label: str) -> None: 
         assert type(winning) == dict
-        assert type(webhook_url) == str
 
         balance_str = winning.get('balance', '확인불가')
         try: 
-            round = winning["round"]
-            money = winning["money"]
-
             if winning["lotto_details"]:
                 max_label_status_length = max(len(f"{line['label']} {line['status']}") for line in winning["lotto_details"])
 
@@ -100,15 +98,14 @@ class Notification:
             else:
                 winning_message = f"[로또 {winning['round']}회차] 아쉽지만 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 😊"
 
-            self._send_discord_webhook(webhook_url, f"```ini\n{formatted_results}```\n{winning_message}")
+            self._send_discord_webhook(webhook_url, self._with_account_label(account_label, f"```ini\n{formatted_results}```\n{winning_message}"))
         except KeyError:
-            message = f"로또 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 :) (남은잔액 : {balance_str}) 🥲"
+            message = self._with_account_label(account_label, f"로또 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 :) (남은잔액 : {balance_str}) 🥲")
             self._send_discord_webhook(webhook_url, message)
             return
 
-    def send_win720_winning_message(self, winning: dict, webhook_url: str) -> None: 
+    def send_win720_winning_message(self, winning: dict, webhook_url: Optional[str], account_label: str) -> None: 
         assert type(winning) == dict
-        assert type(webhook_url) == str
 
         balance_str = winning.get('balance', '확인불가')
         try:
@@ -131,12 +128,12 @@ class Notification:
             else:
                  message = f"{message_content}[연금복권 {winning['round']}회차] 아쉽지만 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 😊"
 
-            self._send_discord_webhook(webhook_url, message)
+            self._send_discord_webhook(webhook_url, self._with_account_label(account_label, message))
         except KeyError:
-            message = f"연금복권 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 :) (남은잔액 : {balance_str}) 🥲"
+            message = self._with_account_label(account_label, f"연금복권 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 :) (남은잔액 : {balance_str}) 🥲")
             self._send_discord_webhook(webhook_url, message)
 
-    def _send_discord_webhook(self, webhook_url: str, message: str) -> None:        
+    def _send_discord_webhook(self, webhook_url: Optional[str], message: str) -> None:        
         if not webhook_url:
             print(f"[Info] Webhook URL not found. Message: {message}")
             return

@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import Optional
 from dotenv import load_dotenv
 
 import auth
@@ -9,26 +10,55 @@ import notification
 import time
 
 
-def _setup_and_login():
+def _normalize_webhook(webhook_url: Optional[str]) -> Optional[str]:
+    if webhook_url and webhook_url.startswith("YOUR_"):
+        return None
+    return webhook_url
+
+
+def _load_accounts():
     load_dotenv(override=True)
-    username = os.environ.get('USERNAME')
-    password = os.environ.get('PASSWORD')
-    slack_webhook_url = os.environ.get('SLACK_WEBHOOK_URL')
-    if slack_webhook_url and slack_webhook_url.startswith("YOUR_"):
-        slack_webhook_url = None
+    account_specs = [
+        {
+            "label": "하람쥐💛",
+            "env_suffix": "",
+        },
+        {
+            "label": "규람쥐❤️",
+            "env_suffix": "_KYU",
+        },
+    ]
+    accounts = []
 
-    discord_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL')
-    if discord_webhook_url and discord_webhook_url.startswith("YOUR_"):
-        discord_webhook_url = None
+    for spec in account_specs:
+        suffix = spec["env_suffix"]
+        username = os.environ.get(f'USERNAME{suffix}')
+        password = os.environ.get(f'PASSWORD{suffix}')
+        count = os.environ.get(f'COUNT{suffix}')
+        slack_webhook_url = _normalize_webhook(os.environ.get(f'SLACK_WEBHOOK_URL{suffix}'))
+        discord_webhook_url = _normalize_webhook(os.environ.get(f'DISCORD_WEBHOOK_URL{suffix}'))
+        telegram_bot_token = _normalize_webhook(os.environ.get(f'TELEGRAM_BOT_TOKEN{suffix}'))
 
-    telegram_bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
-    if telegram_bot_token and telegram_bot_token.startswith("YOUR_"):
-        telegram_bot_token = None
+        if not username or not password:
+            continue
 
-    if slack_webhook_url:
-        webhook_url = slack_webhook_url
-    else:
-        webhook_url = discord_webhook_url
+        webhook_url = slack_webhook_url or discord_webhook_url
+        accounts.append({
+            "label": spec["label"],
+            "username": username,
+            "password": password,
+            "count": int(count) if count else None,
+            "webhook_url": webhook_url,
+            "telegram_bot_token": telegram_bot_token,
+        })
+
+    return accounts
+
+
+def _setup_and_login(account: dict):
+    username = account["username"]
+    password = account["password"]
+    webhook_url = account["webhook_url"]
 
     auth_ctrl = auth.AuthController()
     auth_ctrl.login(username, password)
@@ -60,75 +90,110 @@ def check_winning_win720(authCtrl: auth.AuthController) -> dict:
     item['balance'] = authCtrl.get_user_balance()
     return item
 
-def send_message(mode: int, lottery_type: int, response: dict, webhook_url: str):
+def send_message(mode: int, lottery_type: int, response: dict, webhook_url: str, account_label: str):
     notify = notification.Notification()
 
     if mode == 0:
         if lottery_type == 0:
-            notify.send_lotto_winning_message(response, webhook_url)
+            notify.send_lotto_winning_message(response, webhook_url, account_label)
         else:
-            notify.send_win720_winning_message(response, webhook_url)
+            notify.send_win720_winning_message(response, webhook_url, account_label)
     elif mode == 1: 
         if lottery_type == 0:
-            notify.send_lotto_buying_message(response, webhook_url)
+            notify.send_lotto_buying_message(response, webhook_url, account_label)
         else:
-            notify.send_win720_buying_message(response, webhook_url)
+            notify.send_win720_buying_message(response, webhook_url, account_label)
 
 def check():
-    auth_ctrl, _, webhook_url = _setup_and_login()
+    accounts = _load_accounts()
+    for index, account in enumerate(accounts):
+        auth_ctrl, _, webhook_url = _setup_and_login(account)
 
-    response = check_winning_lotto645(auth_ctrl)
-    send_message(0, 0, response=response, webhook_url=webhook_url)
+        response = check_winning_lotto645(auth_ctrl)
+        send_message(0, 0, response=response, webhook_url=webhook_url, account_label=account["label"])
 
-    time.sleep(10)
-    
-    response = check_winning_win720(auth_ctrl)
-    send_message(0, 1, response=response, webhook_url=webhook_url)
+        time.sleep(10)
+        
+        response = check_winning_win720(auth_ctrl)
+        send_message(0, 1, response=response, webhook_url=webhook_url, account_label=account["label"])
+
+        if index < len(accounts) - 1:
+            time.sleep(10)
 
 def buy(): 
-    load_dotenv(override=True) 
-    count = int(os.environ.get('COUNT'))
     mode = "AUTO"
 
-    auth_ctrl, username, webhook_url = _setup_and_login()
+    accounts = _load_accounts()
+    for index, account in enumerate(accounts):
+        count = account["count"]
+        if count is None:
+            raise ValueError(f"{account['label']} 계정의 COUNT 설정이 필요합니다.")
 
-    response = buy_lotto645(auth_ctrl, count, mode) 
-    send_message(1, 0, response=response, webhook_url=webhook_url)
+        auth_ctrl, username, webhook_url = _setup_and_login(account)
 
-    time.sleep(10)
+        response = buy_lotto645(auth_ctrl, count, mode) 
+        send_message(1, 0, response=response, webhook_url=webhook_url, account_label=account["label"])
 
-    auth_ctrl.http_client.session.cookies.clear()
-    auth_ctrl, username, webhook_url = _setup_and_login()
+        time.sleep(10)
 
-    response = buy_win720(auth_ctrl, username) 
-    send_message(1, 1, response=response, webhook_url=webhook_url)
+        auth_ctrl.http_client.session.cookies.clear()
+        auth_ctrl, username, webhook_url = _setup_and_login(account)
+
+        response = buy_win720(auth_ctrl, username) 
+        send_message(1, 1, response=response, webhook_url=webhook_url, account_label=account["label"])
+
+        if index < len(accounts) - 1:
+            time.sleep(10)
 
 def lotto_buy():
-    load_dotenv(override=True)
-    count = int(os.environ.get('COUNT'))
-    auth_ctrl, _, discord_webhook_url = _setup_and_login()
     mode = "AUTO"
-    
-    response = buy_lotto645(auth_ctrl, count, mode)
-    send_message(1, 0, response=response, webhook_url=discord_webhook_url)
+
+    accounts = _load_accounts()
+    for index, account in enumerate(accounts):
+        count = account["count"]
+        if count is None:
+            raise ValueError(f"{account['label']} 계정의 COUNT 설정이 필요합니다.")
+
+        auth_ctrl, _, discord_webhook_url = _setup_and_login(account)
+        
+        response = buy_lotto645(auth_ctrl, count, mode)
+        send_message(1, 0, response=response, webhook_url=discord_webhook_url, account_label=account["label"])
+
+        if index < len(accounts) - 1:
+            time.sleep(10)
 
 def win720_buy():
-    auth_ctrl, username, discord_webhook_url = _setup_and_login()
+    accounts = _load_accounts()
+    for index, account in enumerate(accounts):
+        auth_ctrl, username, discord_webhook_url = _setup_and_login(account)
 
-    response = buy_win720(auth_ctrl, username)
-    send_message(1, 1, response=response, webhook_url=discord_webhook_url)
+        response = buy_win720(auth_ctrl, username)
+        send_message(1, 1, response=response, webhook_url=discord_webhook_url, account_label=account["label"])
+
+        if index < len(accounts) - 1:
+            time.sleep(10)
 
 def lotto_check():
-    auth_ctrl, _, discord_webhook_url = _setup_and_login()
+    accounts = _load_accounts()
+    for index, account in enumerate(accounts):
+        auth_ctrl, _, discord_webhook_url = _setup_and_login(account)
 
-    response = check_winning_lotto645(auth_ctrl)
-    send_message(0, 0, response=response, webhook_url=discord_webhook_url)
+        response = check_winning_lotto645(auth_ctrl)
+        send_message(0, 0, response=response, webhook_url=discord_webhook_url, account_label=account["label"])
+
+        if index < len(accounts) - 1:
+            time.sleep(10)
 
 def win720_check():
-    auth_ctrl, _, discord_webhook_url = _setup_and_login()
+    accounts = _load_accounts()
+    for index, account in enumerate(accounts):
+        auth_ctrl, _, discord_webhook_url = _setup_and_login(account)
 
-    response = check_winning_win720(auth_ctrl)
-    send_message(0, 1, response=response, webhook_url=discord_webhook_url)
+        response = check_winning_win720(auth_ctrl)
+        send_message(0, 1, response=response, webhook_url=discord_webhook_url, account_label=account["label"])
+
+        if index < len(accounts) - 1:
+            time.sleep(10)
 
 def run():
     if len(sys.argv) < 2:

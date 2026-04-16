@@ -18,10 +18,18 @@ USERNAME=동행복권아이디
 PASSWORD=동행복권비밀번호
 COUNT=5
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+
+USERNAME_KYU=추가계정아이디
+PASSWORD_KYU=추가계정비밀번호
+COUNT_KYU=5
+DISCORD_WEBHOOK_URL_KYU=https://discord.com/api/webhooks/...
 ```
 
 - `COUNT`는 로또 자동 구매 게임 수입니다. (`1`~`5`)
+- `COUNT_KYU`는 `규람쥐❤️` 계정의 로또 자동 구매 게임 수입니다. (`1`~`5`)
 - 디스코드만 쓸 경우 `SLACK_WEBHOOK_URL`은 비워두세요.
+- `USERNAME_KYU`와 `PASSWORD_KYU`를 넣으면 `규람쥐❤️` 계정도 같은 스케줄에 함께 구매/당첨확인을 진행합니다.
+- 디스코드 알림에는 `하람쥐💛`, `규람쥐❤️` 문구가 앞에 붙어 계정이 구분됩니다.
 
 ## 3) 로컬에서 먼저 테스트
 ```bash
@@ -46,6 +54,10 @@ make check_win720
    - `PASSWORD`
    - `COUNT`
    - `DISCORD_WEBHOOK_URL`
+   - `USERNAME_KYU`
+   - `PASSWORD_KYU`
+   - `COUNT_KYU`
+   - `DISCORD_WEBHOOK_URL_KYU`
 
 기본 스케줄:
 - 구매: 매주 월요일 KST 19:00
