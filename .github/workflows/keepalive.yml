@@ -1,0 +1,31 @@
+name: Keep Repository Active
+
+on:
+  schedule:
+    - cron: "17 18 1 * *" # monthly on the 2nd at 03:17 AM (KST)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: keep-repository-active
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    name: Keep Repository Active
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Create empty activity commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "chore: keep repository active"
+          git push origin HEAD:main
