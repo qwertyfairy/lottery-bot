@@ -1,23 +1,47 @@
 name: Buy lotto
 on:
   schedule:
-    - cron: 0 10 * * 1 # every Monday on 07:00 PM (KST)
+    - cron: 0 10 * * 1-5 # Mon-Fri 07:00 PM (KST); retries next day if the whole run failed
   workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   build:
     runs-on: [ubuntu-latest]
     name: Buy lotto
-    steps:  
+    steps:
 
-      - uses: actions/checkout@v3    
-      - uses: actions/setup-python@v4
+      - name: Skip if already bought this week
+        id: guard
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # this week's Monday (UTC)
+          since=$(date -u -d "-$(( $(date -u +%u) - 1 )) days" +%Y-%m-%d)
+          count=$(gh api -X GET "repos/${{ github.repository }}/actions/workflows/buy_lotto.yml/runs" \
+            -f status=success -f created=">=$since" --jq '.total_count')
+          echo "Successful runs since $since: $count"
+          if [ "$count" -gt 0 ]; then
+            echo "Already succeeded this week. Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.skip != 'true'
+      - uses: actions/setup-python@v5
+        if: steps.guard.outputs.skip != 'true'
         with:
           python-version: '3.9'
           cache: 'pip' # caching pip dependencies
       - run: pip install -r requirements.txt
-      
+        if: steps.guard.outputs.skip != 'true'
+
       - name: Run Scripts
+        if: steps.guard.outputs.skip != 'true'
         run: make buy # or use 'make buy_lotto' / 'make buy_win720' for granular purchase
         env:
           USERNAME: ${{ secrets.USERNAME }}

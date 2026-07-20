@@ -1,23 +1,47 @@
 name: Check Winning
 on:
   schedule:
-    - cron: 0 13 * * 6 # every Saturday on 10:00 PM (KST)
+    - cron: 0 13 * * 6,0 # Sat & Sun 10:00 PM (KST); Sunday is the retry if Saturday failed
   workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   build:
     runs-on: [ubuntu-latest]
     name: Check Winning
-    steps:  
+    steps:
 
-      - uses: actions/checkout@v3    
-      - uses: actions/setup-python@v4
+      - name: Skip if already checked this weekend
+        id: guard
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # this weekend's Saturday (UTC): Sat(%u=6) -> today, Sun(%u=7) -> yesterday
+          since=$(date -u -d "-$(( $(date -u +%u) - 6 )) days" +%Y-%m-%d)
+          count=$(gh api -X GET "repos/${{ github.repository }}/actions/workflows/check_winning.yml/runs" \
+            -f status=success -f created=">=$since" --jq '.total_count')
+          echo "Successful runs since $since: $count"
+          if [ "$count" -gt 0 ]; then
+            echo "Already succeeded this weekend. Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.skip != 'true'
+      - uses: actions/setup-python@v5
+        if: steps.guard.outputs.skip != 'true'
         with:
           python-version: '3.9'
           cache: 'pip' # caching pip dependencies
       - run: pip install -r requirements.txt
+        if: steps.guard.outputs.skip != 'true'
 
       - name: Run Scripts
+        if: steps.guard.outputs.skip != 'true'
         run: make check_lotto # lotto only
         env:
           USERNAME: ${{ secrets.USERNAME }}

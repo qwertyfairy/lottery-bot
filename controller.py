@@ -105,21 +105,23 @@ def send_message(mode: int, lottery_type: int, response: dict, webhook_url: str,
         else:
             notify.send_win720_buying_message(response, webhook_url, account_label)
 
-def _for_each_account(task_label: str, action):
+def _for_each_account(task_label: str, action, fail_only_if_all: bool):
     accounts = _load_accounts()
-    failed = False
+    failures = 0
     for index, account in enumerate(accounts):
         try:
             action(account)
         except requests.RequestException as error:
-            failed = True
+            failures += 1
             notification.Notification().send_failure_message(
                 account["webhook_url"], account["label"], task_label, error)
 
         if index < len(accounts) - 1:
             time.sleep(10)
 
-    if failed:
+    # 구매는 전 계정 실패일 때만 실패 처리(다음날 재시도 시 이중 구매 방지),
+    # 조회는 한 계정이라도 실패하면 실패 처리(재조회는 무해)
+    if failures and (not fail_only_if_all or failures == len(accounts)):
         sys.exit(1)
 
 def _buy_lotto_for(account):
@@ -147,12 +149,12 @@ def _check_win720_for(account):
     send_message(0, 1, response=response, webhook_url=webhook_url, account_label=account["label"])
 
 _COMMANDS = {
-    "buy": ("로또 구매", _buy_lotto_for),
-    "buy_lotto": ("로또 구매", _buy_lotto_for),
-    "check": ("로또 당첨 확인", _check_lotto_for),
-    "check_lotto": ("로또 당첨 확인", _check_lotto_for),
-    "buy_win720": ("연금복권 구매", _buy_win720_for),
-    "check_win720": ("연금복권 당첨 확인", _check_win720_for),
+    "buy": ("로또 구매", _buy_lotto_for, True),
+    "buy_lotto": ("로또 구매", _buy_lotto_for, True),
+    "check": ("로또 당첨 확인", _check_lotto_for, False),
+    "check_lotto": ("로또 당첨 확인", _check_lotto_for, False),
+    "buy_win720": ("연금복권 구매", _buy_win720_for, True),
+    "check_win720": ("연금복권 당첨 확인", _check_win720_for, False),
 }
 
 def run():
@@ -160,8 +162,8 @@ def run():
         print("Usage: python controller.py [buy|check|buy_lotto|check_lotto|buy_win720|check_win720]")
         return
 
-    task_label, action = _COMMANDS[sys.argv[1]]
-    _for_each_account(task_label, action)
+    task_label, action, fail_only_if_all = _COMMANDS[sys.argv[1]]
+    _for_each_account(task_label, action, fail_only_if_all)
   
 
 if __name__ == "__main__":
