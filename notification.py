@@ -133,6 +133,15 @@ class Notification:
             message = self._with_account_label(account_label, f"연금복권 미당첨이에요. 그래도 다음 기회가 있으니 같이 가봐요 :) (남은잔액 : {balance_str}) 🥲")
             self._send_discord_webhook(webhook_url, message)
 
+    def send_failure_message(self, webhook_url: Optional[str], account_label: str, task_label: str, error: Exception) -> None:
+        message = self._with_account_label(
+            account_label,
+            f"🚨 {task_label} 실패 — 동행복권 접속이 안 돼요.\n"
+            f"GitHub 서버(해외 IP)가 차단됐을 가능성이 높아요. 보통 일시적이며, 다음 정기 실행 때 다시 시도돼요.\n"
+            f"```{type(error).__name__}: {error}```"
+        )
+        self._send_discord_webhook(webhook_url, message)
+
     def _send_discord_webhook(self, webhook_url: Optional[str], message: str) -> None:        
         if not webhook_url:
             print(f"[Info] Webhook URL not found. Message: {message}")

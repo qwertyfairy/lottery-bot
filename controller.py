@@ -1,6 +1,7 @@
 import os
 import sys
 from typing import Optional
+import requests
 from dotenv import load_dotenv
 
 import auth
@@ -104,101 +105,63 @@ def send_message(mode: int, lottery_type: int, response: dict, webhook_url: str,
         else:
             notify.send_win720_buying_message(response, webhook_url, account_label)
 
-def check():
+def _for_each_account(task_label: str, action):
     accounts = _load_accounts()
+    failed = False
     for index, account in enumerate(accounts):
-        auth_ctrl, _, webhook_url = _setup_and_login(account)
-
-        response = check_winning_lotto645(auth_ctrl)
-        send_message(0, 0, response=response, webhook_url=webhook_url, account_label=account["label"])
+        try:
+            action(account)
+        except requests.RequestException as error:
+            failed = True
+            notification.Notification().send_failure_message(
+                account["webhook_url"], account["label"], task_label, error)
 
         if index < len(accounts) - 1:
             time.sleep(10)
 
-def buy(): 
-    mode = "AUTO"
+    if failed:
+        sys.exit(1)
 
-    accounts = _load_accounts()
-    for index, account in enumerate(accounts):
-        count = account["count"]
-        if count is None:
-            raise ValueError(f"{account['label']} 계정의 COUNT 설정이 필요합니다.")
+def _buy_lotto_for(account):
+    count = account["count"]
+    if count is None:
+        raise ValueError(f"{account['label']} 계정의 COUNT 설정이 필요합니다.")
 
-        auth_ctrl, username, webhook_url = _setup_and_login(account)
+    auth_ctrl, _, webhook_url = _setup_and_login(account)
+    response = buy_lotto645(auth_ctrl, count, "AUTO")
+    send_message(1, 0, response=response, webhook_url=webhook_url, account_label=account["label"])
 
-        response = buy_lotto645(auth_ctrl, count, mode) 
-        send_message(1, 0, response=response, webhook_url=webhook_url, account_label=account["label"])
+def _check_lotto_for(account):
+    auth_ctrl, _, webhook_url = _setup_and_login(account)
+    response = check_winning_lotto645(auth_ctrl)
+    send_message(0, 0, response=response, webhook_url=webhook_url, account_label=account["label"])
 
-        if index < len(accounts) - 1:
-            time.sleep(10)
+def _buy_win720_for(account):
+    auth_ctrl, username, webhook_url = _setup_and_login(account)
+    response = buy_win720(auth_ctrl, username)
+    send_message(1, 1, response=response, webhook_url=webhook_url, account_label=account["label"])
 
-def lotto_buy():
-    mode = "AUTO"
+def _check_win720_for(account):
+    auth_ctrl, _, webhook_url = _setup_and_login(account)
+    response = check_winning_win720(auth_ctrl)
+    send_message(0, 1, response=response, webhook_url=webhook_url, account_label=account["label"])
 
-    accounts = _load_accounts()
-    for index, account in enumerate(accounts):
-        count = account["count"]
-        if count is None:
-            raise ValueError(f"{account['label']} 계정의 COUNT 설정이 필요합니다.")
-
-        auth_ctrl, _, discord_webhook_url = _setup_and_login(account)
-        
-        response = buy_lotto645(auth_ctrl, count, mode)
-        send_message(1, 0, response=response, webhook_url=discord_webhook_url, account_label=account["label"])
-
-        if index < len(accounts) - 1:
-            time.sleep(10)
-
-def win720_buy():
-    accounts = _load_accounts()
-    for index, account in enumerate(accounts):
-        auth_ctrl, username, discord_webhook_url = _setup_and_login(account)
-
-        response = buy_win720(auth_ctrl, username)
-        send_message(1, 1, response=response, webhook_url=discord_webhook_url, account_label=account["label"])
-
-        if index < len(accounts) - 1:
-            time.sleep(10)
-
-def lotto_check():
-    accounts = _load_accounts()
-    for index, account in enumerate(accounts):
-        auth_ctrl, _, discord_webhook_url = _setup_and_login(account)
-
-        response = check_winning_lotto645(auth_ctrl)
-        send_message(0, 0, response=response, webhook_url=discord_webhook_url, account_label=account["label"])
-
-        if index < len(accounts) - 1:
-            time.sleep(10)
-
-def win720_check():
-    accounts = _load_accounts()
-    for index, account in enumerate(accounts):
-        auth_ctrl, _, discord_webhook_url = _setup_and_login(account)
-
-        response = check_winning_win720(auth_ctrl)
-        send_message(0, 1, response=response, webhook_url=discord_webhook_url, account_label=account["label"])
-
-        if index < len(accounts) - 1:
-            time.sleep(10)
+_COMMANDS = {
+    "buy": ("로또 구매", _buy_lotto_for),
+    "buy_lotto": ("로또 구매", _buy_lotto_for),
+    "check": ("로또 당첨 확인", _check_lotto_for),
+    "check_lotto": ("로또 당첨 확인", _check_lotto_for),
+    "buy_win720": ("연금복권 구매", _buy_win720_for),
+    "check_win720": ("연금복권 당첨 확인", _check_win720_for),
+}
 
 def run():
-    if len(sys.argv) < 2:
-        print("Usage: python controller.py [buy|check]")
+    if len(sys.argv) < 2 or sys.argv[1] not in _COMMANDS:
+        print("Usage: python controller.py [buy|check|buy_lotto|check_lotto|buy_win720|check_win720]")
         return
 
-    if sys.argv[1] == "buy":
-        buy()
-    elif sys.argv[1] == "check":
-        check()
-    elif sys.argv[1] == "buy_lotto":
-        lotto_buy()
-    elif sys.argv[1] == "buy_win720":
-        win720_buy()
-    elif sys.argv[1] == "check_lotto":
-        lotto_check()
-    elif sys.argv[1] == "check_win720":
-        win720_check()
+    task_label, action = _COMMANDS[sys.argv[1]]
+    _for_each_account(task_label, action)
   
 
 if __name__ == "__main__":
