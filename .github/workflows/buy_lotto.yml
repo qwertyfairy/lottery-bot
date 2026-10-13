@@ -1,7 +1,7 @@
 name: Buy lotto
 on:
   schedule:
-    - cron: 0 10 * * 1-5 # Mon-Fri 07:00 PM (KST); retries next day if the whole run failed
+    - cron: 23 0 * * 1-5 # Mon-Fri 09:23 AM (KST). runs were seen delayed ~9.5h, so start early to finish before 24:00 KST sales close; off-the-hour to dodge GitHub peak load. retries next day if every account failed
   workflow_dispatch:
 
 permissions:

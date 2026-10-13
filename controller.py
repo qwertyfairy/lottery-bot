@@ -1,7 +1,6 @@
 import os
 import sys
 from typing import Optional
-import requests
 from dotenv import load_dotenv
 
 import auth
@@ -9,6 +8,7 @@ import lotto645
 import win720
 import notification
 import time
+import traceback
 
 
 def _normalize_webhook(webhook_url: Optional[str]) -> Optional[str]:
@@ -110,9 +110,11 @@ def _for_each_account(task_label: str, action, fail_only_if_all: bool):
     failures = 0
     for index, account in enumerate(accounts):
         try:
-            action(account)
-        except requests.RequestException as error:
+            if action(account) is False:  # 접속은 됐으나 사이트가 거절(판매시간 외 등), 알림은 action이 이미 보냄
+                failures += 1
+        except Exception as error:  # 예상 밖 오류도 실패로 집계해야 다른 계정이 다음 날 중복 구매되지 않음
             failures += 1
+            traceback.print_exc()
             notification.Notification().send_failure_message(
                 account["webhook_url"], account["label"], task_label, error)
 
@@ -132,6 +134,7 @@ def _buy_lotto_for(account):
     auth_ctrl, _, webhook_url = _setup_and_login(account)
     response = buy_lotto645(auth_ctrl, count, "AUTO")
     send_message(1, 0, response=response, webhook_url=webhook_url, account_label=account["label"])
+    return response.get("result", {}).get("resultMsg", "").upper() == "SUCCESS"
 
 def _check_lotto_for(account):
     auth_ctrl, _, webhook_url = _setup_and_login(account)

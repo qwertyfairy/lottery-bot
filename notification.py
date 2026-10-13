@@ -134,10 +134,14 @@ class Notification:
             self._send_discord_webhook(webhook_url, message)
 
     def send_failure_message(self, webhook_url: Optional[str], account_label: str, task_label: str, error: Exception) -> None:
+        if isinstance(error, requests.RequestException):
+            reason = ("동행복권 접속이 안 돼요.\n"
+                      "GitHub 서버(해외 IP)가 차단됐을 가능성이 높아요. 보통 일시적이며, 다음 정기 실행 때 다시 시도돼요.")
+        else:
+            reason = "예상하지 못한 오류가 났어요. Actions 로그를 확인해주세요."
         message = self._with_account_label(
             account_label,
-            f"🚨 {task_label} 실패 — 동행복권 접속이 안 돼요.\n"
-            f"GitHub 서버(해외 IP)가 차단됐을 가능성이 높아요. 보통 일시적이며, 다음 정기 실행 때 다시 시도돼요.\n"
+            f"🚨 {task_label} 실패 — {reason}\n"
             f"```{type(error).__name__}: {error}```"
         )
         self._send_discord_webhook(webhook_url, message)
@@ -148,4 +152,8 @@ class Notification:
             return
         
         payload = { "content": message }
-        requests.post(webhook_url, json=payload)
+        # 전송 실패가 구매 실패로 집계되면 다음 날 재시도로 중복 구매될 수 있어 로그만 남김
+        try:
+            requests.post(webhook_url, json=payload, timeout=10)
+        except requests.RequestException as error:
+            print(f"[Error] Discord webhook failed: {error}. Message: {message}")
