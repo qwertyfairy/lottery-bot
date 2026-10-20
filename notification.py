@@ -137,6 +137,8 @@ class Notification:
         if isinstance(error, requests.RequestException):
             reason = ("동행복권 접속이 안 돼요.\n"
                       "GitHub 서버(해외 IP)가 차단됐을 가능성이 높아요. 보통 일시적이며, 다음 정기 실행 때 다시 시도돼요.")
+        elif isinstance(error, PermissionError):  # auth.AuthController._verify_logged_in
+            reason = "로그인이 안 됐어요. 비밀번호 변경·계정 잠금·사이트 차단 여부를 확인해주세요."
         else:
             reason = "예상하지 못한 오류가 났어요. Actions 로그를 확인해주세요."
         message = self._with_account_label(

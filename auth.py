@@ -69,6 +69,7 @@ class AuthController:
 
                 # 5. Execute Login
                 self._try_login(headers, data)
+                self._verify_logged_in()
                 return # Success
                 
             except requests.RequestException as e:
@@ -183,6 +184,34 @@ class AuthController:
 
         return ""
             
+    def _get_user_mndp(self) -> requests.Response:
+        timestamp = int(datetime.datetime.now().timestamp() * 1000)
+        url = f"https://www.dhlottery.co.kr/mypage/selectUserMndp.do?_={timestamp}"
+
+        headers = copy.deepcopy(self._REQ_HEADERS)
+        headers.update({
+            "Referer": "https://www.dhlottery.co.kr/mypage/home",
+            "X-Requested-With": "XMLHttpRequest",
+            "Content-Type": "application/json;charset=UTF-8",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "requestMenuUri": "/mypage/home",
+            "AJAX": "true",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-Dest": "empty"
+        })
+        return self.http_client.get(url, headers=headers)
+
+    def _verify_logged_in(self):
+        # 로그인 POST는 실패해도 200을 주므로, 로그인 전용 API가 401이면 미인증으로 본다
+        try:
+            self._get_user_mndp()
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code in (401, 403):
+                # RequestException이 아닌 예외로 올려 재시도하지 않음(비밀번호 오류 반복 시 계정 잠금 방지)
+                raise PermissionError("로그인 실패: 인증되지 않은 세션입니다 (아이디·비밀번호 또는 사이트 차단 확인)") from e
+            raise
+
     def get_user_balance(self) -> str:
         last_error = None
         
@@ -193,23 +222,7 @@ class AuthController:
                  except requests.RequestException:
                      pass
 
-                 timestamp = int(datetime.datetime.now().timestamp() * 1000)
-                 url = f"https://www.dhlottery.co.kr/mypage/selectUserMndp.do?_={timestamp}"
-                 
-                 headers = copy.deepcopy(self._REQ_HEADERS)
-                 headers.update({
-                    "Referer": "https://www.dhlottery.co.kr/mypage/home",
-                    "X-Requested-With": "XMLHttpRequest",
-                    "Content-Type": "application/json;charset=UTF-8",
-                    "Accept": "application/json, text/javascript, */*; q=0.01",
-                    "requestMenuUri": "/mypage/home",
-                    "AJAX": "true",
-                    "Sec-Fetch-Mode": "cors",
-                    "Sec-Fetch-Site": "same-origin",
-                    "Sec-Fetch-Dest": "empty"
-                 })
-                 
-                 res = self.http_client.get(url, headers=headers)
+                 res = self._get_user_mndp()
                  
                  txt = res.text.strip()
                  if txt.startswith("<"):

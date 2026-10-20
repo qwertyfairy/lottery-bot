@@ -400,9 +400,11 @@ class Win720:
                             
                 except Exception as e:
                      logger.error(f"[Error] Win720 list process error: {e}")
+                     raise  # 목록을 못 읽었는데 미당첨으로 알리면 안 됨
             
         except Exception as e:
             logger.error(f"[Error] Win720 check error: {e}")
+            raise  # 조회 실패를 미당첨으로 알리지 않고 실패 알림으로 넘김
 
         return result_data
     

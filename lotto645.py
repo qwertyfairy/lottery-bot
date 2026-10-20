@@ -272,7 +272,7 @@ class Lotto645:
                     print("DEBUG_DATA_LIST_MISSING_IN_DATA")
             except (json.JSONDecodeError, AttributeError, KeyError) as e:
                 logger.error(f"[Error] API JSON Parse Failed: {e}")
-                data = {}
+                raise  # 응답을 못 읽었는데 미당첨으로 알리면 안 됨
 
             if not data.get("list"):
                  return {"data": "no winning data (empty list or API fail)"}
@@ -355,6 +355,7 @@ class Lotto645:
                             
         except (requests.RequestException, json.JSONDecodeError, KeyError) as e:
             logger.error(f"[Error] Lotto check error: {e}")
+            raise  # 조회 실패를 미당첨으로 알리지 않고 실패 알림으로 넘김
         except Exception as e:
             logger.error(f"[Error] Unexpected Lotto check error: {e}")
             raise
